@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Wife's Wishlist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="decor decor-top"></div>
+    <div class="decor decor-bottom"></div>
+
+    <div id="bubble-layer" aria-hidden="true"></div>
+
+    <main class="panel" aria-label="Nhập wishlist">
+      <h1>My Wife's Wishlist 💖</h1>
+      <p class="subtitle">Thêm món đồ mơ ước của bé và xem bong bóng bay khắp màn hình!</p>
+
+      <section id="auth-section" class="auth-section" aria-label="Đăng nhập">
+        <form id="auth-form" autocomplete="off">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" name="email" type="email" placeholder="email@example.com" required />
+
+          <label for="auth-password">Mật khẩu</label>
+          <input id="auth-password" name="password" type="password" placeholder="••••••••" required />
+
+          <button type="submit">Đăng nhập</button>
+        </form>
+
+        <div class="auth-meta">
+          <p id="auth-status" class="counter">Đăng nhập để dùng wishlist ☁️</p>
+          <button id="sign-out" type="button" class="secondary-btn" hidden>Đăng xuất</button>
+        </div>
+      </section>
+
+      <section id="wishlist-section" class="wishlist-section" hidden>
+        <form id="wishlist-form" autocomplete="off">
+          <label for="item-name">Tên món đồ</label>
+          <input
+            id="item-name"
+            name="itemName"
+            type="text"
+            placeholder="Ví dụ: Nến thơm vanilla"
+            maxlength="60"
+            required
+          />
+
+          <label for="item-note">Chú thích (màu sắc, kiểu dáng, mùi,...)</label>
+          <input
+            id="item-note"
+            name="itemNote"
+            type="text"
+            placeholder="Ví dụ: Mùi dịu, lọ thủy tinh màu be"
+            maxlength="90"
+            required
+          />
+
+          <label for="item-level">Mức độ thích</label>
+          <select id="item-level" name="itemLevel" required>
+            <option value="medium">Vừa vừa</option>
+            <option value="love">Rất thích</option>
+          </select>
+
+          <button type="submit">Lưu wishlist</button>
+        </form>
+
+        <p id="wishlist-count" class="counter">Chưa có bong bóng nào ✨</p>
+      </section>
+    </main>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
