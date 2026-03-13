@@ -25,7 +25,10 @@ const FIREBASE_LIST_PATH = "wishlists/my-private-list";
 const ALLOWED_EMAIL = "tjn3012@gmail.com";
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-const MOBILE_FRAME_INTERVAL_MS = 34;
+const isAndroid = /Android/i.test(navigator.userAgent);
+const MOBILE_FRAME_INTERVAL_MS = isAndroid ? 42 : 34;
+const SHOULD_LIMIT_EFFECTS = prefersReducedMotion || (isCoarsePointer && isAndroid);
+const FLOAT_SCALE = isAndroid ? 0.45 : 1;
 
 const bubbles = [];
 const MAX_BUBBLES = prefersReducedMotion ? 24 : isCoarsePointer ? 32 : 100;
@@ -33,10 +36,17 @@ let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let persistedWishes = [];
 let panelCollapsed = false;
+let viewportWidth = window.innerWidth;
+let viewportHeight = window.innerHeight;
 
 let auth = null;
 let database = null;
 let currentUser = null;
+
+function updateViewportSize() {
+  viewportWidth = Math.max(1, window.innerWidth);
+  viewportHeight = Math.max(1, window.innerHeight);
+}
 
 function setPanelCollapsed(collapsed, shouldFocusInput = false) {
   if (!panel || !panelToggleButton) {
@@ -84,7 +94,7 @@ function initParallax() {
     return;
   }
 
-  if (prefersReducedMotion) {
+  if (SHOULD_LIMIT_EFFECTS) {
     return;
   }
 
@@ -123,8 +133,8 @@ function initParallax() {
   };
 
   function normalizePoint(clientX, clientY) {
-    const x = (clientX / window.innerWidth - 0.5) * 2;
-    const y = (clientY / window.innerHeight - 0.5) * 2;
+    const x = (clientX / viewportWidth - 0.5) * 2;
+    const y = (clientY / viewportHeight - 0.5) * 2;
     state.targetX = clamp(x, -1, 1);
     state.targetY = clamp(y, -1, 1);
 
@@ -375,8 +385,8 @@ function spawnBubble(itemName, itemNote, itemLevel) {
   const width = rect.width;
   const height = rect.height;
 
-  const x = randomInRange(0, Math.max(1, window.innerWidth - width));
-  const y = randomInRange(0, Math.max(1, window.innerHeight - height));
+  const x = randomInRange(0, Math.max(1, viewportWidth - width));
+  const y = randomInRange(0, Math.max(1, viewportHeight - height));
 
   const velocity = {
     x: randomInRange(isCoarsePointer ? 12 : 28, isCoarsePointer ? 34 : 75) * (Math.random() < 0.5 ? -1 : 1),
@@ -392,7 +402,7 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
-    floatAmplitude: randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12)
+    floatAmplitude: randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12) * FLOAT_SCALE
   };
 
   bubbles.push(bubble);
@@ -449,18 +459,20 @@ function animateBubblesFrame(now) {
     bubble.x += bubble.vx * deltaTime;
     bubble.y += bubble.vy * deltaTime;
 
-    if (bubble.x <= 0 || bubble.x + bubble.width >= window.innerWidth) {
+    if (bubble.x <= 0 || bubble.x + bubble.width >= viewportWidth) {
       bubble.vx *= -1;
-      bubble.x = clamp(bubble.x, 0, Math.max(0, window.innerWidth - bubble.width));
+      bubble.x = clamp(bubble.x, 0, Math.max(0, viewportWidth - bubble.width));
     }
 
-    if (bubble.y <= 0 || bubble.y + bubble.height >= window.innerHeight) {
+    if (bubble.y <= 0 || bubble.y + bubble.height >= viewportHeight) {
       bubble.vy *= -1;
-      bubble.y = clamp(bubble.y, 0, Math.max(0, window.innerHeight - bubble.height));
+      bubble.y = clamp(bubble.y, 0, Math.max(0, viewportHeight - bubble.height));
     }
 
-    const bobOffset = Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude;
-    bubble.element.style.transform = `translate3d(${bubble.x}px, ${bubble.y + bobOffset}px, 0)`;
+    const bobOffset = bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude : 0;
+    const renderX = SHOULD_LIMIT_EFFECTS ? Math.round(bubble.x) : bubble.x;
+    const renderY = SHOULD_LIMIT_EFFECTS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
+    bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
   }
 
   bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
@@ -585,13 +597,20 @@ signOutButton.addEventListener("click", async () => {
 });
 
 window.addEventListener("resize", () => {
+  updateViewportSize();
+
   for (const bubble of bubbles) {
-    bubble.x = clamp(bubble.x, 0, Math.max(0, window.innerWidth - bubble.width));
-    bubble.y = clamp(bubble.y, 0, Math.max(0, window.innerHeight - bubble.height));
+    bubble.x = clamp(bubble.x, 0, Math.max(0, viewportWidth - bubble.width));
+    bubble.y = clamp(bubble.y, 0, Math.max(0, viewportHeight - bubble.height));
   }
 });
 
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", updateViewportSize, { passive: true });
+}
+
 async function bootstrap() {
+  updateViewportSize();
   document.body.classList.toggle("coarse-pointer", isCoarsePointer);
 
   initParallax();

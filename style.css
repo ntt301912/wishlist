@@ -45,8 +45,8 @@ body.coarse-pointer {
 }
 
 body.coarse-pointer .decor {
-  filter: blur(1px);
-  opacity: 0.56;
+  filter: none;
+  opacity: 0.48;
 }
 
 body.coarse-pointer .panel {
@@ -97,6 +97,7 @@ body.coarse-pointer .wish-bubble {
   pointer-events: none;
   will-change: transform;
   transform: translate3d(0, 0, 0);
+  contain: layout paint;
 }
 
 .panel {
@@ -325,6 +326,7 @@ button:active {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   will-change: transform;
+  contain: layout paint;
 }
 
 .wish-bubble h3 {
