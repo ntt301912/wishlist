@@ -119,6 +119,61 @@ h1 {
 .wishlist-section {
   display: grid;
   gap: 8px;
+  position: relative;
+}
+
+.wishlist-form-wrap {
+  display: block;
+}
+
+button.wishlist-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #5a486f;
+  background: linear-gradient(120deg, #ffd2e8 0%, #ffc0df 52%, #ffdff0 100%);
+  box-shadow: 0 10px 20px rgba(255, 124, 181, 0.24);
+  z-index: 4;
+}
+
+.wishlist-section button.wishlist-toggle:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.wishlist-section.composer-collapsed .wishlist-form-wrap {
+  display: none;
+}
+
+.wishlist-section.composer-collapsed button.wishlist-toggle {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: calc(10px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  width: 58px;
+  height: 58px;
+  font-size: 2rem;
+  z-index: 10;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 14px 30px rgba(255, 124, 181, 0.32);
+}
+
+.wishlist-section.composer-collapsed button.wishlist-toggle:hover {
+  transform: translateX(-50%) translateY(-1px) scale(1.03);
+}
+
+.wishlist-section.composer-collapsed .counter {
+  margin-top: 10px;
 }
 
 form {
@@ -286,6 +341,19 @@ button:active {
   #wishlist-form {
     border-radius: 16px;
     padding: 12px;
+  }
+
+  button.wishlist-toggle {
+    top: 6px;
+    right: 6px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .wishlist-section.composer-collapsed button.wishlist-toggle {
+    width: 54px;
+    height: 54px;
+    font-size: 1.8rem;
   }
 }
 

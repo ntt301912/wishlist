@@ -4,6 +4,8 @@ import { getDatabase, get, push, ref } from "https://www.gstatic.com/firebasejs/
 
 const form = document.getElementById("wishlist-form");
 const wishlistSection = document.getElementById("wishlist-section");
+const wishlistFormWrap = document.getElementById("wishlist-form-wrap");
+const wishlistToggleButton = document.getElementById("wishlist-toggle");
 const bubbleLayer = document.getElementById("bubble-layer");
 const panel = document.querySelector(".panel");
 const decorTop = document.querySelector(".decor-top");
@@ -30,10 +32,37 @@ const MAX_BUBBLES = prefersReducedMotion ? 36 : isCoarsePointer ? 54 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let persistedWishes = [];
+let composerCollapsed = false;
 
 let auth = null;
 let database = null;
 let currentUser = null;
+
+function setComposerCollapsed(collapsed, shouldFocusInput = false) {
+  if (!wishlistSection || !wishlistFormWrap || !wishlistToggleButton) {
+    return;
+  }
+
+  composerCollapsed = collapsed;
+  wishlistSection.classList.toggle("composer-collapsed", collapsed);
+  wishlistFormWrap.hidden = collapsed;
+  wishlistToggleButton.textContent = collapsed ? "+" : "-";
+  wishlistToggleButton.setAttribute("aria-expanded", String(!collapsed));
+  wishlistToggleButton.setAttribute(
+    "aria-label",
+    collapsed ? "Mở form thêm món đồ" : "Thu nhỏ form thêm món đồ"
+  );
+
+  if (shouldFocusInput && !collapsed) {
+    document.getElementById("item-name")?.focus();
+  }
+}
+
+if (wishlistToggleButton) {
+  wishlistToggleButton.addEventListener("click", () => {
+    setComposerCollapsed(!composerCollapsed, true);
+  });
+}
 
 function initParallax() {
   if (!bubbleLayer || !panel || !decorTop || !decorBottom) {
@@ -537,6 +566,7 @@ window.addEventListener("resize", () => {
 
 async function bootstrap() {
   initParallax();
+  setComposerCollapsed(false);
 
   setWishlistEnabled(false);
   authForm.hidden = false;
@@ -556,6 +586,7 @@ async function bootstrap() {
     if (!user) {
       currentUser = null;
       setWishlistEnabled(false);
+      setComposerCollapsed(false);
       setAuthMode(false, "Đăng nhập bằng tài khoản được cấp quyền");
       persistedWishes = [];
       clearBubbles();
@@ -572,6 +603,7 @@ async function bootstrap() {
 
     currentUser = user;
     setWishlistEnabled(true);
+    setComposerCollapsed(false);
     setAuthMode(true, `Đã đăng nhập: ${user.email}`);
     await refreshWishlistFromCloud();
   });

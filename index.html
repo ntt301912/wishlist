@@ -40,44 +40,57 @@
       </section>
 
       <section id="wishlist-section" class="wishlist-section" hidden>
-        <form id="wishlist-form" autocomplete="off">
-          <label for="item-name">Tên món đồ</label>
-          <input
-            id="item-name"
-            name="itemName"
-            type="text"
-            placeholder="Ví dụ: Nến thơm vanilla"
-            maxlength="60"
-            required
-          />
+        <button
+          id="wishlist-toggle"
+          class="wishlist-toggle"
+          type="button"
+          aria-label="Thu nhỏ form thêm món đồ"
+          aria-expanded="true"
+          aria-controls="wishlist-form-wrap"
+        >
+          -
+        </button>
 
-          <label for="item-note">Chú thích (màu sắc, kiểu dáng, mùi,...)</label>
-          <input
-            id="item-note"
-            name="itemNote"
-            type="text"
-            placeholder="Ví dụ: Mùi dịu, lọ thủy tinh màu be"
-            maxlength="90"
-            required
-          />
+        <div id="wishlist-form-wrap" class="wishlist-form-wrap">
+          <form id="wishlist-form" autocomplete="off">
+            <label for="item-name">Tên món đồ</label>
+            <input
+              id="item-name"
+              name="itemName"
+              type="text"
+              placeholder="Ví dụ: Nến thơm vanilla"
+              maxlength="60"
+              required
+            />
 
-          <label for="item-link">Link mua</label>
-          <input
-            id="item-link"
-            name="itemLink"
-            type="url"
-            placeholder="https://..."
-            maxlength="300"
-          />
+            <label for="item-note">Chú thích (màu sắc, kiểu dáng, mùi,...)</label>
+            <input
+              id="item-note"
+              name="itemNote"
+              type="text"
+              placeholder="Ví dụ: Mùi dịu, lọ thủy tinh màu be"
+              maxlength="90"
+              required
+            />
 
-          <label for="item-level">Mức độ thích</label>
-          <select id="item-level" name="itemLevel" required>
-            <option value="medium">Vừa vừa</option>
-            <option value="love">Rất thích</option>
-          </select>
+            <label for="item-link">Link mua</label>
+            <input
+              id="item-link"
+              name="itemLink"
+              type="url"
+              placeholder="https://..."
+              maxlength="300"
+            />
 
-          <button type="submit">Lưu wishlist</button>
-        </form>
+            <label for="item-level">Mức độ thích</label>
+            <select id="item-level" name="itemLevel" required>
+              <option value="medium">Vừa vừa</option>
+              <option value="love">Rất thích</option>
+            </select>
+
+            <button type="submit">Lưu wishlist</button>
+          </form>
+        </div>
 
         <p id="wishlist-count" class="counter">Chưa có bong bóng nào ✨</p>
       </section>
