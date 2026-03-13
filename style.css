@@ -44,6 +44,32 @@ body.coarse-pointer {
   background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
 }
 
+body.low-power {
+  perspective: none;
+  background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+}
+
+body.low-power .decor {
+  display: none;
+}
+
+body.low-power .panel {
+  box-shadow: 0 10px 22px rgba(132, 133, 194, 0.2);
+}
+
+body.low-power .wish-bubble {
+  box-shadow: none;
+  border-width: 1px;
+}
+
+body.low-power .wish-bubble.pink {
+  background: #ffd4ea;
+}
+
+body.low-power .wish-bubble.blue {
+  background: #cfefff;
+}
+
 body.coarse-pointer .decor {
   filter: none;
   opacity: 0.48;

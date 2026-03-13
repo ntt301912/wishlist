@@ -26,12 +26,15 @@ const ALLOWED_EMAIL = "tjn3012@gmail.com";
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
-const MOBILE_FRAME_INTERVAL_MS = isAndroid ? 42 : 34;
-const SHOULD_LIMIT_EFFECTS = prefersReducedMotion || (isCoarsePointer && isAndroid);
+const hasTouchInput = navigator.maxTouchPoints > 0 || window.matchMedia("(hover: none)").matches;
+const LOW_POWER_MODE = prefersReducedMotion || hasTouchInput;
+const MOBILE_FRAME_INTERVAL_MS = LOW_POWER_MODE ? 50 : isAndroid ? 42 : 34;
+const SHOULD_LIMIT_EFFECTS = LOW_POWER_MODE;
+const ENABLE_BOB = !LOW_POWER_MODE;
 const FLOAT_SCALE = isAndroid ? 0.45 : 1;
 
 const bubbles = [];
-const MAX_BUBBLES = prefersReducedMotion ? 24 : isCoarsePointer ? 32 : 100;
+const MAX_BUBBLES = prefersReducedMotion ? 20 : LOW_POWER_MODE ? 20 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let persistedWishes = [];
@@ -94,7 +97,7 @@ function initParallax() {
     return;
   }
 
-  if (SHOULD_LIMIT_EFFECTS) {
+  if (LOW_POWER_MODE) {
     return;
   }
 
@@ -181,8 +184,11 @@ function initParallax() {
     normalizePoint(event.clientX, event.clientY);
   };
 
-  document.addEventListener("pointermove", onPointerMove, { passive: true });
-  document.addEventListener("mousemove", onPointerMove, { passive: true });
+  if (window.PointerEvent) {
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
+  } else {
+    document.addEventListener("mousemove", onPointerMove, { passive: true });
+  }
 
   if (isCoarsePointer) {
     let orientationEnabled = false;
@@ -402,7 +408,9 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
-    floatAmplitude: randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12) * FLOAT_SCALE
+    floatAmplitude: ENABLE_BOB
+      ? randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12) * FLOAT_SCALE
+      : 0
   };
 
   bubbles.push(bubble);
@@ -447,7 +455,7 @@ function animateBubblesFrame(now) {
   }
 
   const elapsedMs = now - previousBubbleFrameTime;
-  if (isCoarsePointer && elapsedMs < MOBILE_FRAME_INTERVAL_MS) {
+  if (LOW_POWER_MODE && elapsedMs < MOBILE_FRAME_INTERVAL_MS) {
     bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
     return;
   }
@@ -612,6 +620,7 @@ if (window.visualViewport) {
 async function bootstrap() {
   updateViewportSize();
   document.body.classList.toggle("coarse-pointer", isCoarsePointer);
+  document.body.classList.toggle("low-power", LOW_POWER_MODE);
 
   initParallax();
   setPanelCollapsed(false);
