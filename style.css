@@ -40,6 +40,30 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+body.coarse-pointer {
+  background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+}
+
+body.coarse-pointer .decor {
+  filter: blur(1px);
+  opacity: 0.56;
+}
+
+body.coarse-pointer .panel {
+  backdrop-filter: none;
+  box-shadow: 0 12px 24px rgba(132, 133, 194, 0.22);
+}
+
+body.coarse-pointer #auth-form,
+body.coarse-pointer #wishlist-form {
+  backdrop-filter: none;
+}
+
+body.coarse-pointer .wish-bubble {
+  box-shadow: none;
+  border-width: 1px;
+}
+
 .decor {
   position: fixed;
   border-radius: 999px;
@@ -117,6 +141,9 @@ button.panel-toggle {
   color: #5a486f;
   background: linear-gradient(120deg, #ffd2e8 0%, #ffc0df 52%, #ffdff0 100%);
   box-shadow: 0 10px 20px rgba(255, 124, 181, 0.24);
+  position: relative;
+  z-index: 20;
+  pointer-events: auto;
 }
 
 .panel.panel-collapsed {
@@ -335,6 +362,10 @@ button:active {
     background:
       radial-gradient(220px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0) 68%),
       radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+  }
+
+  body.coarse-pointer {
+    perspective: none;
   }
 
   .panel {

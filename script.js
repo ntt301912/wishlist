@@ -25,9 +25,10 @@ const FIREBASE_LIST_PATH = "wishlists/my-private-list";
 const ALLOWED_EMAIL = "tjn3012@gmail.com";
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+const MOBILE_FRAME_INTERVAL_MS = 34;
 
 const bubbles = [];
-const MAX_BUBBLES = prefersReducedMotion ? 36 : isCoarsePointer ? 54 : 100;
+const MAX_BUBBLES = prefersReducedMotion ? 24 : isCoarsePointer ? 32 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let persistedWishes = [];
@@ -61,9 +62,21 @@ function setPanelCollapsed(collapsed, shouldFocusInput = false) {
 }
 
 if (panelToggleButton) {
-  panelToggleButton.addEventListener("click", () => {
+  const togglePanel = () => {
     setPanelCollapsed(!panelCollapsed, true);
-  });
+  };
+
+  panelToggleButton.addEventListener("click", togglePanel);
+
+  // Some mobile browsers may miss click synthesis on transformed layers.
+  panelToggleButton.addEventListener(
+    "touchend",
+    (event) => {
+      event.preventDefault();
+      togglePanel();
+    },
+    { passive: false }
+  );
 }
 
 function initParallax() {
@@ -114,8 +127,11 @@ function initParallax() {
     const y = (clientY / window.innerHeight - 0.5) * 2;
     state.targetX = clamp(x, -1, 1);
     state.targetY = clamp(y, -1, 1);
-    document.body.style.setProperty("--cursor-x", `${clientX}px`);
-    document.body.style.setProperty("--cursor-y", `${clientY}px`);
+
+    if (!isCoarsePointer) {
+      document.body.style.setProperty("--cursor-x", `${clientX}px`);
+      document.body.style.setProperty("--cursor-y", `${clientY}px`);
+    }
 
     if (!state.rafId) {
       state.rafId = requestAnimationFrame(applyParallax);
@@ -182,11 +198,6 @@ function initParallax() {
       state.targetX = x;
       state.targetY = y;
 
-      const px = ((x + 1) / 2) * 100;
-      const py = ((y + 1) / 2) * 100;
-      document.body.style.setProperty("--cursor-x", `${px}%`);
-      document.body.style.setProperty("--cursor-y", `${py}%`);
-
       if (!state.rafId) {
         state.rafId = requestAnimationFrame(applyParallax);
       }
@@ -212,15 +223,19 @@ function initParallax() {
       }
     };
 
-    enableOrientation();
-    document.addEventListener("touchstart", enableOrientation, { passive: true, once: true });
+    // Android browsers generally allow this immediately.
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission !== "function") {
+      enableOrientation();
+    }
   }
 
   const resetParallax = () => {
     state.targetX = 0;
     state.targetY = 0;
-    document.body.style.setProperty("--cursor-x", "50%");
-    document.body.style.setProperty("--cursor-y", "50%");
+    if (!isCoarsePointer) {
+      document.body.style.setProperty("--cursor-x", "50%");
+      document.body.style.setProperty("--cursor-y", "50%");
+    }
     if (!state.rafId) {
       state.rafId = requestAnimationFrame(applyParallax);
     }
@@ -364,8 +379,8 @@ function spawnBubble(itemName, itemNote, itemLevel) {
   const y = randomInRange(0, Math.max(1, window.innerHeight - height));
 
   const velocity = {
-    x: randomInRange(isCoarsePointer ? 22 : 28, isCoarsePointer ? 56 : 75) * (Math.random() < 0.5 ? -1 : 1),
-    y: randomInRange(isCoarsePointer ? 18 : 24, isCoarsePointer ? 48 : 65) * (Math.random() < 0.5 ? -1 : 1)
+    x: randomInRange(isCoarsePointer ? 12 : 28, isCoarsePointer ? 34 : 75) * (Math.random() < 0.5 ? -1 : 1),
+    y: randomInRange(isCoarsePointer ? 10 : 24, isCoarsePointer ? 30 : 65) * (Math.random() < 0.5 ? -1 : 1)
   };
 
   const bubble = {
@@ -377,7 +392,7 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
-    floatAmplitude: randomInRange(isCoarsePointer ? 3 : 4, isCoarsePointer ? 8 : 12)
+    floatAmplitude: randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12)
   };
 
   bubbles.push(bubble);
@@ -421,7 +436,13 @@ function animateBubblesFrame(now) {
     return;
   }
 
-  const deltaTime = Math.min((now - previousBubbleFrameTime) / 1000, 0.05);
+  const elapsedMs = now - previousBubbleFrameTime;
+  if (isCoarsePointer && elapsedMs < MOBILE_FRAME_INTERVAL_MS) {
+    bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
+    return;
+  }
+
+  const deltaTime = Math.min(elapsedMs / 1000, 0.05);
   previousBubbleFrameTime = now;
 
   for (const bubble of bubbles) {
@@ -571,6 +592,8 @@ window.addEventListener("resize", () => {
 });
 
 async function bootstrap() {
+  document.body.classList.toggle("coarse-pointer", isCoarsePointer);
+
   initParallax();
   setPanelCollapsed(false);
 
