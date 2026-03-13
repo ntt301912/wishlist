@@ -5,6 +5,9 @@ import { getDatabase, get, push, ref } from "https://www.gstatic.com/firebasejs/
 const form = document.getElementById("wishlist-form");
 const wishlistSection = document.getElementById("wishlist-section");
 const bubbleLayer = document.getElementById("bubble-layer");
+const panel = document.querySelector(".panel");
+const decorTop = document.querySelector(".decor-top");
+const decorBottom = document.querySelector(".decor-bottom");
 const counter = document.getElementById("wishlist-count");
 const authForm = document.getElementById("auth-form");
 const authStatus = document.getElementById("auth-status");
@@ -19,15 +22,115 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_LIST_PATH = "wishlists/my-private-list";
 const ALLOWED_EMAIL = "tjn3012@gmail.com";
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
 
 const bubbles = [];
-const MAX_BUBBLES = 100;
-let animationStarted = false;
+const MAX_BUBBLES = prefersReducedMotion ? 36 : isCoarsePointer ? 54 : 100;
+let bubbleAnimationFrameId = 0;
+let previousBubbleFrameTime = 0;
 let persistedWishes = [];
 
 let auth = null;
 let database = null;
 let currentUser = null;
+
+function initParallax() {
+  if (!bubbleLayer || !panel || !decorTop || !decorBottom) {
+    return;
+  }
+
+  if (prefersReducedMotion) {
+    return;
+  }
+
+  const depth = isCoarsePointer
+    ? {
+        bubbleX: 5,
+        bubbleY: 4,
+        decorTopX: 8,
+        decorTopY: 6,
+        decorBottomX: -7,
+        decorBottomY: -5,
+        panelX: -1.8,
+        panelY: -1.8,
+        rotateX: 0,
+        rotateY: 0
+      }
+    : {
+        bubbleX: 18,
+        bubbleY: 13,
+        decorTopX: 28,
+        decorTopY: 21,
+        decorBottomX: -24,
+        decorBottomY: -18,
+        panelX: -6,
+        panelY: -6,
+        rotateX: 1.5,
+        rotateY: 2
+      };
+
+  const state = {
+    targetX: 0,
+    targetY: 0,
+    currentX: 0,
+    currentY: 0,
+    rafId: 0
+  };
+
+  function normalizePoint(clientX, clientY) {
+    const x = (clientX / window.innerWidth - 0.5) * 2;
+    const y = (clientY / window.innerHeight - 0.5) * 2;
+    state.targetX = clamp(x, -1, 1);
+    state.targetY = clamp(y, -1, 1);
+
+    if (!state.rafId) {
+      state.rafId = requestAnimationFrame(applyParallax);
+    }
+  }
+
+  function applyParallax() {
+    if (document.hidden) {
+      state.rafId = 0;
+      return;
+    }
+
+    const ease = 0.14;
+    state.currentX += (state.targetX - state.currentX) * ease;
+    state.currentY += (state.targetY - state.currentY) * ease;
+
+    bubbleLayer.style.transform = `translate3d(${state.currentX * depth.bubbleX}px, ${state.currentY * depth.bubbleY}px, 0)`;
+    decorTop.style.transform = `translate3d(${state.currentX * depth.decorTopX}px, ${state.currentY * depth.decorTopY}px, 0)`;
+    decorBottom.style.transform = `translate3d(${state.currentX * depth.decorBottomX}px, ${state.currentY * depth.decorBottomY}px, 0)`;
+    panel.style.transform = `translate3d(${state.currentX * depth.panelX}px, ${state.currentY * depth.panelY}px, 0) rotateX(${state.currentY * -depth.rotateX}deg) rotateY(${state.currentX * depth.rotateY}deg)`;
+
+    const closeEnoughX = Math.abs(state.targetX - state.currentX) < 0.001;
+    const closeEnoughY = Math.abs(state.targetY - state.currentY) < 0.001;
+    if (closeEnoughX && closeEnoughY) {
+      state.rafId = 0;
+      return;
+    }
+
+    state.rafId = requestAnimationFrame(applyParallax);
+  }
+
+  window.addEventListener("pointermove", (event) => {
+    normalizePoint(event.clientX, event.clientY);
+  }, { passive: true });
+
+  const resetParallax = () => {
+    state.targetX = 0;
+    state.targetY = 0;
+    if (!state.rafId) {
+      state.rafId = requestAnimationFrame(applyParallax);
+    }
+  };
+
+  document.addEventListener("mouseleave", resetParallax);
+  window.addEventListener("pointercancel", resetParallax);
+  window.addEventListener("blur", resetParallax);
+  document.addEventListener("visibilitychange", resetParallax);
+}
 
 function isFirebaseConfigured() {
   return Boolean(
@@ -134,6 +237,7 @@ function clearBubbles() {
   }
 
   bubbles.length = 0;
+  stopBubbleAnimation();
   updateCounter();
 }
 
@@ -158,8 +262,8 @@ function spawnBubble(itemName, itemNote, itemLevel) {
   const y = randomInRange(0, Math.max(1, window.innerHeight - height));
 
   const velocity = {
-    x: randomInRange(28, 75) * (Math.random() < 0.5 ? -1 : 1),
-    y: randomInRange(24, 65) * (Math.random() < 0.5 ? -1 : 1)
+    x: randomInRange(isCoarsePointer ? 22 : 28, isCoarsePointer ? 56 : 75) * (Math.random() < 0.5 ? -1 : 1),
+    y: randomInRange(isCoarsePointer ? 18 : 24, isCoarsePointer ? 48 : 65) * (Math.random() < 0.5 ? -1 : 1)
   };
 
   const bubble = {
@@ -171,7 +275,7 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
-    floatAmplitude: randomInRange(4, 12)
+    floatAmplitude: randomInRange(isCoarsePointer ? 3 : 4, isCoarsePointer ? 8 : 12)
   };
 
   bubbles.push(bubble);
@@ -188,43 +292,65 @@ function spawnBubble(itemName, itemNote, itemLevel) {
 
 function addWish(wish) {
   spawnBubble(wish.itemName, wish.itemNote, wish.itemLevel);
-
-  if (!animationStarted) {
-    animateBubbles();
-    animationStarted = true;
-  }
+  startBubbleAnimation();
 }
 
-function animateBubbles() {
-  let previousTime = performance.now();
+function startBubbleAnimation() {
+  if (bubbleAnimationFrameId || bubbles.length === 0 || document.hidden) {
+    return;
+  }
 
-  function frame(now) {
-    const deltaTime = Math.min((now - previousTime) / 1000, 0.05);
-    previousTime = now;
+  previousBubbleFrameTime = performance.now();
+  bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
+}
 
-    for (const bubble of bubbles) {
-      bubble.x += bubble.vx * deltaTime;
-      bubble.y += bubble.vy * deltaTime;
+function stopBubbleAnimation() {
+  if (!bubbleAnimationFrameId) {
+    return;
+  }
 
-      if (bubble.x <= 0 || bubble.x + bubble.width >= window.innerWidth) {
-        bubble.vx *= -1;
-        bubble.x = clamp(bubble.x, 0, Math.max(0, window.innerWidth - bubble.width));
-      }
+  cancelAnimationFrame(bubbleAnimationFrameId);
+  bubbleAnimationFrameId = 0;
+}
 
-      if (bubble.y <= 0 || bubble.y + bubble.height >= window.innerHeight) {
-        bubble.vy *= -1;
-        bubble.y = clamp(bubble.y, 0, Math.max(0, window.innerHeight - bubble.height));
-      }
+function animateBubblesFrame(now) {
+  if (document.hidden || bubbles.length === 0) {
+    bubbleAnimationFrameId = 0;
+    return;
+  }
 
-      const bobOffset = Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude;
-      bubble.element.style.transform = `translate(${bubble.x}px, ${bubble.y + bobOffset}px)`;
+  const deltaTime = Math.min((now - previousBubbleFrameTime) / 1000, 0.05);
+  previousBubbleFrameTime = now;
+
+  for (const bubble of bubbles) {
+    bubble.x += bubble.vx * deltaTime;
+    bubble.y += bubble.vy * deltaTime;
+
+    if (bubble.x <= 0 || bubble.x + bubble.width >= window.innerWidth) {
+      bubble.vx *= -1;
+      bubble.x = clamp(bubble.x, 0, Math.max(0, window.innerWidth - bubble.width));
     }
 
-    requestAnimationFrame(frame);
+    if (bubble.y <= 0 || bubble.y + bubble.height >= window.innerHeight) {
+      bubble.vy *= -1;
+      bubble.y = clamp(bubble.y, 0, Math.max(0, window.innerHeight - bubble.height));
+    }
+
+    const bobOffset = Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude;
+    bubble.element.style.transform = `translate3d(${bubble.x}px, ${bubble.y + bobOffset}px, 0)`;
   }
 
-  requestAnimationFrame(frame);
+  bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopBubbleAnimation();
+    return;
+  }
+
+  startBubbleAnimation();
+});
 
 async function loadWishesFromFirebase() {
   try {
@@ -343,6 +469,8 @@ window.addEventListener("resize", () => {
 });
 
 async function bootstrap() {
+  initParallax();
+
   setWishlistEnabled(false);
   authForm.hidden = false;
   signOutButton.hidden = true;

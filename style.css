@@ -6,7 +6,9 @@
   --blue-2: #9fd8ff;
   --blue-3: #69c0ff;
   --text: #4d4466;
-  --panel: rgba(255, 255, 255, 0.78);
+  --panel: rgba(255, 255, 255, 0.66);
+  --form-surface: rgba(255, 255, 255, 0.38);
+  --field-surface: rgba(255, 255, 255, 0.72);
 }
 
 * {
@@ -31,6 +33,9 @@ body {
   font-family: "Quicksand", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+  perspective: 1200px;
+  perspective-origin: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .decor {
@@ -40,6 +45,7 @@ body {
   opacity: 0.7;
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
 }
 
 .decor-top {
@@ -63,6 +69,8 @@ body {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .panel {
@@ -77,6 +85,8 @@ body {
   box-shadow: 0 12px 30px rgba(132, 133, 194, 0.22);
   max-height: calc(100dvh - 32px);
   overflow: auto;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 h1 {
@@ -114,6 +124,15 @@ form {
   gap: 9px;
 }
 
+#auth-form,
+#wishlist-form {
+  background: var(--form-surface);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 18px;
+  padding: 14px;
+  backdrop-filter: blur(3px);
+}
+
 label {
   font-weight: 700;
   font-size: 0.95rem;
@@ -131,7 +150,7 @@ select {
   border: 1px solid #eed3e9;
   border-radius: 14px;
   padding: 11px 13px;
-  background: #fff;
+  background: var(--field-surface);
   color: var(--text);
   outline: none;
 }
@@ -151,6 +170,7 @@ button {
   font-weight: 700;
   padding: 12px 18px;
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -200,6 +220,8 @@ button:active {
   box-shadow: 0 8px 18px rgba(129, 129, 188, 0.25);
   border: 2px solid rgba(255, 255, 255, 0.85);
   transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .wish-bubble h3 {
@@ -225,8 +247,15 @@ button:active {
 }
 
 @media (max-width: 640px) {
+  :root {
+    --panel: rgba(255, 255, 255, 0.58);
+    --form-surface: rgba(255, 255, 255, 0.3);
+    --field-surface: rgba(255, 255, 255, 0.66);
+  }
+
   body {
-    padding: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    perspective: none;
   }
 
   .panel {
@@ -234,6 +263,8 @@ button:active {
     padding: 18px;
     border-radius: 20px;
     max-height: calc(100dvh - 20px);
+    backdrop-filter: blur(2px);
+    transform: none !important;
   }
 
   .auth-meta {
@@ -245,6 +276,25 @@ button:active {
     width: clamp(150px, 50vw, 220px);
     min-height: 104px;
     padding: 12px 16px;
+  }
+
+  #auth-form,
+  #wishlist-form {
+    border-radius: 16px;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .decor,
+  #bubble-layer,
+  .panel,
+  .wish-bubble {
+    transition: none !important;
+  }
+
+  .panel {
+    transform: none !important;
   }
 }
 
