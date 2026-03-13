@@ -92,6 +92,7 @@ function normalizeWish(rawWish) {
   const id = typeof rawWish.id === "string" && rawWish.id.trim() ? rawWish.id.trim() : generateWishId();
   const itemName = String(rawWish.itemName ?? "").trim();
   const itemNote = String(rawWish.itemNote ?? "").trim();
+  const itemLink = String(rawWish.itemLink ?? "").trim();
   const itemLevel = rawWish.itemLevel === "love" ? "love" : "medium";
   const parsedCreatedAt = Number(rawWish.createdAt);
   const createdAt = Number.isFinite(parsedCreatedAt) ? parsedCreatedAt : Date.now();
@@ -104,6 +105,7 @@ function normalizeWish(rawWish) {
     id,
     itemName,
     itemNote,
+    itemLink,
     itemLevel,
     createdAt
   };
@@ -278,6 +280,7 @@ form.addEventListener("submit", async (event) => {
     id: generateWishId(),
     itemName: (formData.get("itemName") ?? "").toString(),
     itemNote: (formData.get("itemNote") ?? "").toString(),
+    itemLink: (formData.get("itemLink") ?? "").toString(),
     itemLevel: (formData.get("itemLevel") ?? "medium").toString(),
     createdAt: Date.now()
   });
