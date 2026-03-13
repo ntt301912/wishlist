@@ -28,7 +28,6 @@ const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
 const hasTouchInput = navigator.maxTouchPoints > 0 || window.matchMedia("(hover: none)").matches;
 const LOW_POWER_MODE = prefersReducedMotion || hasTouchInput;
-const MOBILE_FRAME_INTERVAL_MS = LOW_POWER_MODE ? 50 : isAndroid ? 42 : 34;
 const SHOULD_LIMIT_EFFECTS = LOW_POWER_MODE;
 const ENABLE_BOB = !LOW_POWER_MODE;
 const FLOAT_SCALE = isAndroid ? 0.45 : 1;
@@ -303,6 +302,18 @@ function randomInRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+function getLowPowerFrameInterval() {
+  if (bubbles.length <= 8) {
+    return 16;
+  }
+
+  if (bubbles.length <= 14) {
+    return 24;
+  }
+
+  return 33;
+}
+
 function updateCounter() {
   if (bubbles.length === 0) {
     counter.textContent = "Chưa có bong bóng nào ✨";
@@ -455,7 +466,7 @@ function animateBubblesFrame(now) {
   }
 
   const elapsedMs = now - previousBubbleFrameTime;
-  if (LOW_POWER_MODE && elapsedMs < MOBILE_FRAME_INTERVAL_MS) {
+  if (LOW_POWER_MODE && elapsedMs < getLowPowerFrameInterval()) {
     bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
     return;
   }

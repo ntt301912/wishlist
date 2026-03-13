@@ -55,6 +55,19 @@ body.low-power .decor {
 
 body.low-power .panel {
   box-shadow: 0 10px 22px rgba(132, 133, 194, 0.2);
+  backdrop-filter: none;
+  will-change: auto;
+  transform-style: flat;
+}
+
+body.low-power #auth-form,
+body.low-power #wishlist-form {
+  backdrop-filter: none;
+}
+
+body.low-power #bubble-layer {
+  will-change: auto;
+  transform: none;
 }
 
 body.low-power .wish-bubble {
