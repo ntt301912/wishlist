@@ -4,8 +4,7 @@ import { getDatabase, get, push, ref } from "https://www.gstatic.com/firebasejs/
 
 const form = document.getElementById("wishlist-form");
 const wishlistSection = document.getElementById("wishlist-section");
-const wishlistFormWrap = document.getElementById("wishlist-form-wrap");
-const wishlistToggleButton = document.getElementById("wishlist-toggle");
+const panelToggleButton = document.getElementById("panel-toggle");
 const bubbleLayer = document.getElementById("bubble-layer");
 const panel = document.querySelector(".panel");
 const decorTop = document.querySelector(".decor-top");
@@ -32,35 +31,38 @@ const MAX_BUBBLES = prefersReducedMotion ? 36 : isCoarsePointer ? 54 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let persistedWishes = [];
-let composerCollapsed = false;
+let panelCollapsed = false;
 
 let auth = null;
 let database = null;
 let currentUser = null;
 
-function setComposerCollapsed(collapsed, shouldFocusInput = false) {
-  if (!wishlistSection || !wishlistFormWrap || !wishlistToggleButton) {
+function setPanelCollapsed(collapsed, shouldFocusInput = false) {
+  if (!panel || !panelToggleButton) {
     return;
   }
 
-  composerCollapsed = collapsed;
-  wishlistSection.classList.toggle("composer-collapsed", collapsed);
-  wishlistFormWrap.hidden = collapsed;
-  wishlistToggleButton.textContent = collapsed ? "+" : "-";
-  wishlistToggleButton.setAttribute("aria-expanded", String(!collapsed));
-  wishlistToggleButton.setAttribute(
+  panelCollapsed = collapsed;
+  panel.classList.toggle("panel-collapsed", collapsed);
+  panelToggleButton.textContent = collapsed ? "+" : "-";
+  panelToggleButton.setAttribute("aria-expanded", String(!collapsed));
+  panelToggleButton.setAttribute(
     "aria-label",
-    collapsed ? "Mở form thêm món đồ" : "Thu nhỏ form thêm món đồ"
+    collapsed ? "Mở bảng wishlist" : "Thu nhỏ bảng wishlist"
   );
+
+  if (collapsed) {
+    panel.style.transform = "";
+  }
 
   if (shouldFocusInput && !collapsed) {
     document.getElementById("item-name")?.focus();
   }
 }
 
-if (wishlistToggleButton) {
-  wishlistToggleButton.addEventListener("click", () => {
-    setComposerCollapsed(!composerCollapsed, true);
+if (panelToggleButton) {
+  panelToggleButton.addEventListener("click", () => {
+    setPanelCollapsed(!panelCollapsed, true);
   });
 }
 
@@ -133,7 +135,11 @@ function initParallax() {
     bubbleLayer.style.transform = `translate3d(${state.currentX * depth.bubbleX}px, ${state.currentY * depth.bubbleY}px, 0)`;
     decorTop.style.transform = `translate3d(${state.currentX * depth.decorTopX}px, ${state.currentY * depth.decorTopY}px, 0)`;
     decorBottom.style.transform = `translate3d(${state.currentX * depth.decorBottomX}px, ${state.currentY * depth.decorBottomY}px, 0)`;
-    panel.style.transform = `translate3d(${state.currentX * depth.panelX}px, ${state.currentY * depth.panelY}px, 0) rotateX(${state.currentY * -depth.rotateX}deg) rotateY(${state.currentX * depth.rotateY}deg)`;
+    if (panelCollapsed) {
+      panel.style.transform = "";
+    } else {
+      panel.style.transform = `translate3d(${state.currentX * depth.panelX}px, ${state.currentY * depth.panelY}px, 0) rotateX(${state.currentY * -depth.rotateX}deg) rotateY(${state.currentX * depth.rotateY}deg)`;
+    }
 
     const closeEnoughX = Math.abs(state.targetX - state.currentX) < 0.001;
     const closeEnoughY = Math.abs(state.targetY - state.currentY) < 0.001;
@@ -566,7 +572,7 @@ window.addEventListener("resize", () => {
 
 async function bootstrap() {
   initParallax();
-  setComposerCollapsed(false);
+  setPanelCollapsed(false);
 
   setWishlistEnabled(false);
   authForm.hidden = false;
@@ -586,7 +592,7 @@ async function bootstrap() {
     if (!user) {
       currentUser = null;
       setWishlistEnabled(false);
-      setComposerCollapsed(false);
+      setPanelCollapsed(false);
       setAuthMode(false, "Đăng nhập bằng tài khoản được cấp quyền");
       persistedWishes = [];
       clearBubbles();
@@ -603,7 +609,7 @@ async function bootstrap() {
 
     currentUser = user;
     setWishlistEnabled(true);
-    setComposerCollapsed(false);
+    setPanelCollapsed(false);
     setAuthMode(true, `Đã đăng nhập: ${user.email}`);
     await refreshWishlistFromCloud();
   });
