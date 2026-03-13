@@ -28,7 +28,8 @@ const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
 const hasTouchInput = navigator.maxTouchPoints > 0 || window.matchMedia("(hover: none)").matches;
 const LOW_POWER_MODE = prefersReducedMotion || hasTouchInput;
-const SHOULD_LIMIT_EFFECTS = LOW_POWER_MODE;
+const SHOULD_ROUND_POSITIONS = LOW_POWER_MODE && isAndroid;
+const TOUCH_SPEED_MULTIPLIER = hasTouchInput && !prefersReducedMotion ? 1.22 : 1;
 const ENABLE_BOB = !LOW_POWER_MODE;
 const FLOAT_SCALE = isAndroid ? 0.45 : 1;
 
@@ -406,8 +407,14 @@ function spawnBubble(itemName, itemNote, itemLevel) {
   const y = randomInRange(0, Math.max(1, viewportHeight - height));
 
   const velocity = {
-    x: randomInRange(isCoarsePointer ? 12 : 28, isCoarsePointer ? 34 : 75) * (Math.random() < 0.5 ? -1 : 1),
-    y: randomInRange(isCoarsePointer ? 10 : 24, isCoarsePointer ? 30 : 65) * (Math.random() < 0.5 ? -1 : 1)
+    x:
+      randomInRange(isCoarsePointer ? 12 : 28, isCoarsePointer ? 34 : 75) *
+      TOUCH_SPEED_MULTIPLIER *
+      (Math.random() < 0.5 ? -1 : 1),
+    y:
+      randomInRange(isCoarsePointer ? 10 : 24, isCoarsePointer ? 30 : 65) *
+      TOUCH_SPEED_MULTIPLIER *
+      (Math.random() < 0.5 ? -1 : 1)
   };
 
   const bubble = {
@@ -489,8 +496,8 @@ function animateBubblesFrame(now) {
     }
 
     const bobOffset = bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude : 0;
-    const renderX = SHOULD_LIMIT_EFFECTS ? Math.round(bubble.x) : bubble.x;
-    const renderY = SHOULD_LIMIT_EFFECTS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
+    const renderX = SHOULD_ROUND_POSITIONS ? Math.round(bubble.x) : bubble.x;
+    const renderY = SHOULD_ROUND_POSITIONS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
     bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
   }
 
