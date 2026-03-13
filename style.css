@@ -32,8 +32,10 @@ body {
   padding: 16px;
   font-family: "Quicksand", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
-  perspective: 1200px;
+  background:
+    radial-gradient(320px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+  perspective: 1400px;
   perspective-origin: center;
   -webkit-tap-highlight-color: transparent;
 }
@@ -82,7 +84,7 @@ body {
   border-radius: 24px;
   background: var(--panel);
   backdrop-filter: blur(6px);
-  box-shadow: 0 12px 30px rgba(132, 133, 194, 0.22);
+  box-shadow: 0 20px 36px rgba(132, 133, 194, 0.26);
   max-height: calc(100dvh - 32px);
   overflow: auto;
   transform-style: preserve-3d;
@@ -255,7 +257,10 @@ button:active {
 
   body {
     padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
-    perspective: none;
+    perspective: 820px;
+    background:
+      radial-gradient(220px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0) 68%),
+      radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
   }
 
   .panel {
@@ -264,7 +269,6 @@ button:active {
     border-radius: 20px;
     max-height: calc(100dvh - 20px);
     backdrop-filter: blur(2px);
-    transform: none !important;
   }
 
   .auth-meta {

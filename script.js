@@ -46,28 +46,28 @@ function initParallax() {
 
   const depth = isCoarsePointer
     ? {
-        bubbleX: 5,
-        bubbleY: 4,
-        decorTopX: 8,
-        decorTopY: 6,
-        decorBottomX: -7,
-        decorBottomY: -5,
-        panelX: -1.8,
-        panelY: -1.8,
-        rotateX: 0,
-        rotateY: 0
+        bubbleX: 11,
+        bubbleY: 8,
+        decorTopX: 16,
+        decorTopY: 12,
+        decorBottomX: -14,
+        decorBottomY: -10,
+        panelX: -3,
+        panelY: -3,
+        rotateX: 1.2,
+        rotateY: 1.6
       }
     : {
-        bubbleX: 18,
-        bubbleY: 13,
-        decorTopX: 28,
-        decorTopY: 21,
-        decorBottomX: -24,
-        decorBottomY: -18,
-        panelX: -6,
-        panelY: -6,
-        rotateX: 1.5,
-        rotateY: 2
+        bubbleX: 34,
+        bubbleY: 22,
+        decorTopX: 54,
+        decorTopY: 38,
+        decorBottomX: -48,
+        decorBottomY: -34,
+        panelX: -12,
+        panelY: -10,
+        rotateX: 3.8,
+        rotateY: 5.4
       };
 
   const state = {
@@ -83,6 +83,8 @@ function initParallax() {
     const y = (clientY / window.innerHeight - 0.5) * 2;
     state.targetX = clamp(x, -1, 1);
     state.targetY = clamp(y, -1, 1);
+    document.body.style.setProperty("--cursor-x", `${clientX}px`);
+    document.body.style.setProperty("--cursor-y", `${clientY}px`);
 
     if (!state.rafId) {
       state.rafId = requestAnimationFrame(applyParallax);
@@ -114,13 +116,76 @@ function initParallax() {
     state.rafId = requestAnimationFrame(applyParallax);
   }
 
-  window.addEventListener("pointermove", (event) => {
+  const onPointerMove = (event) => {
     normalizePoint(event.clientX, event.clientY);
-  }, { passive: true });
+  };
+
+  document.addEventListener("pointermove", onPointerMove, { passive: true });
+  document.addEventListener("mousemove", onPointerMove, { passive: true });
+
+  if (isCoarsePointer) {
+    let orientationEnabled = false;
+
+    const onTouchMove = (event) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      normalizePoint(touch.clientX, touch.clientY);
+    };
+
+    document.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    const onDeviceOrientation = (event) => {
+      if (!Number.isFinite(event.gamma) || !Number.isFinite(event.beta)) {
+        return;
+      }
+
+      const x = clamp(event.gamma / 24, -1, 1);
+      const y = clamp(event.beta / 32, -1, 1);
+      state.targetX = x;
+      state.targetY = y;
+
+      const px = ((x + 1) / 2) * 100;
+      const py = ((y + 1) / 2) * 100;
+      document.body.style.setProperty("--cursor-x", `${px}%`);
+      document.body.style.setProperty("--cursor-y", `${py}%`);
+
+      if (!state.rafId) {
+        state.rafId = requestAnimationFrame(applyParallax);
+      }
+    };
+
+    const enableOrientation = async () => {
+      if (orientationEnabled) {
+        return;
+      }
+
+      try {
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== "granted") {
+            return;
+          }
+        }
+
+        window.addEventListener("deviceorientation", onDeviceOrientation, { passive: true });
+        orientationEnabled = true;
+      } catch (error) {
+        // Orientation permission may be denied on some devices.
+      }
+    };
+
+    enableOrientation();
+    document.addEventListener("touchstart", enableOrientation, { passive: true, once: true });
+  }
 
   const resetParallax = () => {
     state.targetX = 0;
     state.targetY = 0;
+    document.body.style.setProperty("--cursor-x", "50%");
+    document.body.style.setProperty("--cursor-y", "50%");
     if (!state.rafId) {
       state.rafId = requestAnimationFrame(applyParallax);
     }
@@ -128,6 +193,8 @@ function initParallax() {
 
   document.addEventListener("mouseleave", resetParallax);
   window.addEventListener("pointercancel", resetParallax);
+  window.addEventListener("touchcancel", resetParallax, { passive: true });
+  window.addEventListener("touchend", resetParallax, { passive: true });
   window.addEventListener("blur", resetParallax);
   document.addEventListener("visibilitychange", resetParallax);
 }
