@@ -32,11 +32,14 @@ const SHOULD_ROUND_POSITIONS = LOW_POWER_MODE && isAndroid;
 const TOUCH_SPEED_MULTIPLIER = hasTouchInput && !prefersReducedMotion ? 1.22 : 1;
 const ENABLE_BOB = !LOW_POWER_MODE;
 const FLOAT_SCALE = isAndroid ? 0.45 : 1;
+const MAX_RECURSIVE_SIMULATION_STEPS = LOW_POWER_MODE ? 2 : 5;
+const MAX_PHYSICS_STEP_SECONDS = LOW_POWER_MODE ? 1 / 45 : 1 / 90;
 
 const bubbles = [];
 const MAX_BUBBLES = prefersReducedMotion ? 20 : LOW_POWER_MODE ? 20 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
+let frameRemainderMs = 0;
 let persistedWishes = [];
 let panelCollapsed = false;
 let viewportWidth = window.innerWidth;
@@ -303,16 +306,124 @@ function randomInRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function getLowPowerFrameInterval() {
-  if (bubbles.length <= 8) {
-    return 16;
+function getFrameProfileByBubbleCount(bubbleCount) {
+  if (prefersReducedMotion) {
+    return {
+      name: "reduced",
+      intervalMs: 1000 / 20
+    };
   }
 
-  if (bubbles.length <= 14) {
-    return 24;
+  if (LOW_POWER_MODE) {
+    if (bubbleCount <= 6) {
+      return {
+        name: "eco-high",
+        intervalMs: 1000 / 45
+      };
+    }
+
+    if (bubbleCount <= 12) {
+      return {
+        name: "eco-balanced",
+        intervalMs: 1000 / 30
+      };
+    }
+
+    return {
+      name: "eco-stable",
+      intervalMs: 1000 / 20
+    };
   }
 
-  return 33;
+  if (bubbleCount <= 6) {
+    return {
+      name: "ultra",
+      intervalMs: 1000 / 120
+    };
+  }
+
+  if (bubbleCount <= 14) {
+    return {
+      name: "high",
+      intervalMs: 1000 / 90
+    };
+  }
+
+  if (bubbleCount <= 28) {
+    return {
+      name: "balanced",
+      intervalMs: 1000 / 60
+    };
+  }
+
+  if (bubbleCount <= 52) {
+    return {
+      name: "smooth",
+      intervalMs: 1000 / 45
+    };
+  }
+
+  if (bubbleCount <= 80) {
+    return {
+      name: "stable",
+      intervalMs: 1000 / 30
+    };
+  }
+
+  return {
+    name: "dense",
+    intervalMs: 1000 / 20
+  };
+}
+
+function syncBubbleBounds(bubble) {
+  bubble.maxX = Math.max(0, viewportWidth - bubble.width);
+  bubble.maxY = Math.max(0, viewportHeight - bubble.height);
+  bubble.x = clamp(bubble.x, 0, bubble.maxX);
+  bubble.y = clamp(bubble.y, 0, bubble.maxY);
+}
+
+function applyBubblePhysicsStep(stepSeconds) {
+  for (const bubble of bubbles) {
+    bubble.x += bubble.vx * stepSeconds;
+    bubble.y += bubble.vy * stepSeconds;
+
+    if (bubble.maxX > 0 && (bubble.x <= 0 || bubble.x >= bubble.maxX)) {
+      bubble.vx *= -1;
+      bubble.x = clamp(bubble.x, 0, bubble.maxX);
+    }
+
+    if (bubble.maxY > 0 && (bubble.y <= 0 || bubble.y >= bubble.maxY)) {
+      bubble.vy *= -1;
+      bubble.y = clamp(bubble.y, 0, bubble.maxY);
+    }
+  }
+}
+
+function simulateBubblesRecursive(remainingSeconds, depth = 0) {
+  if (remainingSeconds <= 0 || depth >= MAX_RECURSIVE_SIMULATION_STEPS) {
+    return;
+  }
+
+  const stepSeconds = Math.min(remainingSeconds, MAX_PHYSICS_STEP_SECONDS);
+  applyBubblePhysicsStep(stepSeconds);
+  simulateBubblesRecursive(remainingSeconds - stepSeconds, depth + 1);
+}
+
+function renderBubbles(now) {
+  for (const bubble of bubbles) {
+    const bobOffset = bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude : 0;
+    const renderX = SHOULD_ROUND_POSITIONS ? Math.round(bubble.x) : bubble.x;
+    const renderY = SHOULD_ROUND_POSITIONS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
+
+    if (renderX === bubble.renderX && renderY === bubble.renderY) {
+      continue;
+    }
+
+    bubble.renderX = renderX;
+    bubble.renderY = renderY;
+    bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
+  }
 }
 
 function updateCounter() {
@@ -423,13 +534,19 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     height,
     x,
     y,
+    maxX: 0,
+    maxY: 0,
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
     floatAmplitude: ENABLE_BOB
       ? randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12) * FLOAT_SCALE
-      : 0
+      : 0,
+    renderX: Number.NaN,
+    renderY: Number.NaN
   };
+
+  syncBubbleBounds(bubble);
 
   bubbles.push(bubble);
 
@@ -454,6 +571,7 @@ function startBubbleAnimation() {
   }
 
   previousBubbleFrameTime = performance.now();
+  frameRemainderMs = 0;
   bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
 }
 
@@ -464,42 +582,33 @@ function stopBubbleAnimation() {
 
   cancelAnimationFrame(bubbleAnimationFrameId);
   bubbleAnimationFrameId = 0;
+  frameRemainderMs = 0;
 }
 
 function animateBubblesFrame(now) {
   if (document.hidden || bubbles.length === 0) {
     bubbleAnimationFrameId = 0;
+    frameRemainderMs = 0;
     return;
   }
 
   const elapsedMs = now - previousBubbleFrameTime;
-  if (LOW_POWER_MODE && elapsedMs < getLowPowerFrameInterval()) {
+  previousBubbleFrameTime = now;
+
+  const frameProfile = getFrameProfileByBubbleCount(bubbles.length);
+  const cappedElapsedMs = Math.min(elapsedMs, 120);
+  frameRemainderMs += cappedElapsedMs;
+  if (frameRemainderMs < frameProfile.intervalMs) {
     bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
     return;
   }
 
-  const deltaTime = Math.min(elapsedMs / 1000, 0.05);
-  previousBubbleFrameTime = now;
+  const processedMs = frameRemainderMs;
+  frameRemainderMs = frameRemainderMs % frameProfile.intervalMs;
 
-  for (const bubble of bubbles) {
-    bubble.x += bubble.vx * deltaTime;
-    bubble.y += bubble.vy * deltaTime;
-
-    if (bubble.x <= 0 || bubble.x + bubble.width >= viewportWidth) {
-      bubble.vx *= -1;
-      bubble.x = clamp(bubble.x, 0, Math.max(0, viewportWidth - bubble.width));
-    }
-
-    if (bubble.y <= 0 || bubble.y + bubble.height >= viewportHeight) {
-      bubble.vy *= -1;
-      bubble.y = clamp(bubble.y, 0, Math.max(0, viewportHeight - bubble.height));
-    }
-
-    const bobOffset = bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude : 0;
-    const renderX = SHOULD_ROUND_POSITIONS ? Math.round(bubble.x) : bubble.x;
-    const renderY = SHOULD_ROUND_POSITIONS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
-    bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
-  }
+  const simulationSeconds = Math.min(processedMs / 1000, MAX_PHYSICS_STEP_SECONDS * MAX_RECURSIVE_SIMULATION_STEPS);
+  simulateBubblesRecursive(simulationSeconds);
+  renderBubbles(now);
 
   bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
 }
@@ -626,8 +735,7 @@ window.addEventListener("resize", () => {
   updateViewportSize();
 
   for (const bubble of bubbles) {
-    bubble.x = clamp(bubble.x, 0, Math.max(0, viewportWidth - bubble.width));
-    bubble.y = clamp(bubble.y, 0, Math.max(0, viewportHeight - bubble.height));
+    syncBubbleBounds(bubble);
   }
 });
 
