@@ -199,6 +199,8 @@ let pointerX = viewportWidth * 0.5;
 let pointerY = viewportHeight * 0.5;
 let pointerLastActiveMs = 0;
 let lastThankYouMessageIndex = -1;
+let lastSaveTapX = Number.NaN;
+let lastSaveTapY = Number.NaN;
 
 let auth = null;
 let database = null;
@@ -507,14 +509,36 @@ function showRandomSaveThanksToast(clientX, clientY) {
   );
 }
 
+function rememberSaveTapPosition(clientX, clientY) {
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+    return;
+  }
+
+  lastSaveTapX = clientX;
+  lastSaveTapY = clientY;
+}
+
 function initSaveThanksFeedback() {
   if (!saveWishButton) {
     return;
   }
 
-  saveWishButton.addEventListener("click", (event) => {
-    showRandomSaveThanksToast(event.clientX, event.clientY);
+  saveWishButton.addEventListener("pointerdown", (event) => {
+    rememberSaveTapPosition(event.clientX, event.clientY);
   });
+
+  saveWishButton.addEventListener(
+    "touchstart",
+    (event) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      rememberSaveTapPosition(touch.clientX, touch.clientY);
+    },
+    { passive: true }
+  );
 }
 
 function getBubbleTextDensityClass(itemName, itemNote) {
@@ -1216,6 +1240,9 @@ form.addEventListener("submit", async (event) => {
 
   persistedWishes = dedupeAndTrimWishes([...persistedWishes, wish]);
   addWish(wish);
+  showRandomSaveThanksToast(lastSaveTapX, lastSaveTapY);
+  lastSaveTapX = Number.NaN;
+  lastSaveTapY = Number.NaN;
 
   form.reset();
   document.getElementById("item-level").value = wish.itemLevel;
