@@ -1183,6 +1183,13 @@ async function refreshWishlistFromCloud() {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  if (hasTouchInput || isCoarsePointer) {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+  }
+
   if (!currentUser) {
     return;
   }
@@ -1212,7 +1219,15 @@ form.addEventListener("submit", async (event) => {
 
   form.reset();
   document.getElementById("item-level").value = wish.itemLevel;
-  document.getElementById("item-name").focus();
+
+  if (hasTouchInput || isCoarsePointer) {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+  } else {
+    document.getElementById("item-name")?.focus();
+  }
 });
 
 authForm.addEventListener("submit", async (event) => {
