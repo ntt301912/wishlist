@@ -5,6 +5,13 @@
   --blue-1: #d8f1ff;
   --blue-2: #9fd8ff;
   --blue-3: #69c0ff;
+  --bg-1: #fff5fb;
+  --bg-2: #ffe9f4;
+  --bg-3: #e5f5ff;
+  --decor-top-1: #ffc5e3;
+  --decor-top-2: #ffdff0;
+  --decor-bottom-1: #bde6ff;
+  --decor-bottom-2: #e2f6ff;
   --text: #4d4466;
   --panel: rgba(255, 255, 255, 0.66);
   --form-surface: rgba(255, 255, 255, 0.38);
@@ -43,19 +50,19 @@ body {
   color: var(--text);
   background:
     radial-gradient(320px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 62%),
-    radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+    radial-gradient(circle at 20% 20%, var(--bg-1) 0%, var(--bg-2) 36%, var(--bg-3) 100%);
   perspective: 1400px;
   perspective-origin: center;
   -webkit-tap-highlight-color: transparent;
 }
 
 body.coarse-pointer {
-  background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+  background: radial-gradient(circle at 20% 20%, var(--bg-1) 0%, var(--bg-2) 36%, var(--bg-3) 100%);
 }
 
 body.low-power {
   perspective: none;
-  background: radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+  background: radial-gradient(circle at 20% 20%, var(--bg-1) 0%, var(--bg-2) 36%, var(--bg-3) 100%);
 }
 
 body.low-power .decor {
@@ -127,7 +134,7 @@ body.coarse-pointer .wish-bubble {
   height: 340px;
   top: -120px;
   right: -90px;
-  background: linear-gradient(140deg, #ffc5e3 10%, #ffdff0 90%);
+  background: linear-gradient(140deg, var(--decor-top-1) 10%, var(--decor-top-2) 90%);
 }
 
 .decor-bottom {
@@ -135,7 +142,7 @@ body.coarse-pointer .wish-bubble {
   height: 300px;
   bottom: -110px;
   left: -80px;
-  background: linear-gradient(140deg, #bde6ff 10%, #e2f6ff 90%);
+  background: linear-gradient(140deg, var(--decor-bottom-1) 10%, var(--decor-bottom-2) 90%);
 }
 
 #bubble-layer {
@@ -378,6 +385,64 @@ button:active {
   contain: layout paint;
 }
 
+.wish-bubble.burst-in {
+  animation: bubble-fade-in 220ms ease-out both;
+}
+
+.wish-bubble[data-lod="1"] {
+  box-shadow: 0 6px 12px rgba(129, 129, 188, 0.18);
+  filter: saturate(0.96);
+}
+
+.wish-bubble[data-lod="2"] {
+  box-shadow: none;
+  border-width: 1px;
+  filter: saturate(0.88);
+}
+
+.wish-bubble.compact {
+  padding: 12px 16px;
+  gap: 4px;
+}
+
+.wish-bubble.compact h3,
+.wish-bubble.compact p,
+.wish-bubble.ultra-compact h3,
+.wish-bubble.ultra-compact p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.wish-bubble.compact h3 {
+  font-size: 0.94rem;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
+
+.wish-bubble.compact p {
+  font-size: 0.84rem;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
+
+.wish-bubble.ultra-compact {
+  padding: 11px 14px;
+  gap: 3px;
+}
+
+.wish-bubble.ultra-compact h3 {
+  font-size: 0.86rem;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
+
+.wish-bubble.ultra-compact p {
+  font-size: 0.78rem;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
+
 .wish-bubble h3 {
   margin: 0;
   font-size: 1rem;
@@ -400,6 +465,16 @@ button:active {
   background: radial-gradient(circle at 30% 20%, var(--blue-1) 0%, #bde8ff 52%, var(--blue-2) 100%);
 }
 
+@keyframes bubble-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 640px) {
   :root {
     --panel: rgba(255, 255, 255, 0.58);
@@ -416,7 +491,7 @@ button:active {
     perspective: 820px;
     background:
       radial-gradient(220px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0) 68%),
-      radial-gradient(circle at 20% 20%, #fff5fb 0%, #ffe9f4 36%, #e5f5ff 100%);
+      radial-gradient(circle at 20% 20%, var(--bg-1) 0%, var(--bg-2) 36%, var(--bg-3) 100%);
   }
 
   body.coarse-pointer {

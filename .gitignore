@@ -1,0 +1,4 @@
+# Local editor settings (do not deploy)
+.vscode/settings.json
+
+README.md

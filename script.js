@@ -34,16 +34,136 @@ const ENABLE_BOB = !LOW_POWER_MODE;
 const FLOAT_SCALE = isAndroid ? 0.45 : 1;
 const MAX_RECURSIVE_SIMULATION_STEPS = LOW_POWER_MODE ? 2 : 5;
 const MAX_PHYSICS_STEP_SECONDS = LOW_POWER_MODE ? 1 / 45 : 1 / 90;
+const ENABLE_MAGNET = !LOW_POWER_MODE && !isCoarsePointer;
+const MAGNET_RADIUS = isAndroid ? 120 : 170;
+const MAGNET_MAX_OFFSET = isAndroid ? 5.5 : 9;
+const MAGNET_ACTIVITY_WINDOW_MS = 1400;
+const IDLE_AFTER_MS = 6500;
+const IDLE_VELOCITY_FACTOR = 0.52;
+const IDLE_BOB_FACTOR = 0.4;
+const COLLISION_GRID_SIZE = LOW_POWER_MODE ? 220 : 180;
+const COLLISION_INTERVAL_MS = LOW_POWER_MODE ? 64 : 33;
+const COLLISION_MAX_PASSES = LOW_POWER_MODE ? 1 : 2;
+const LOD_REFRESH_INTERVAL_MS = LOW_POWER_MODE ? 380 : 220;
+const BURST_DURATION_MS = 240;
+const COLLISION_NEIGHBOR_OFFSETS = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [-1, 1]
+];
+const THEME_PACKS = [
+  {
+    name: "dawn",
+    fromHour: 5,
+    toHour: 9,
+    vars: {
+      "--pink-1": "#ffe1ee",
+      "--pink-2": "#ffb4d6",
+      "--blue-1": "#e4f5ff",
+      "--blue-2": "#acdfff",
+      "--bg-1": "#fff8fd",
+      "--bg-2": "#ffeef8",
+      "--bg-3": "#ebf7ff",
+      "--decor-top-1": "#ffd2ea",
+      "--decor-top-2": "#ffe6f3",
+      "--decor-bottom-1": "#ccecff",
+      "--decor-bottom-2": "#e8f7ff"
+    }
+  },
+  {
+    name: "daylight",
+    fromHour: 9,
+    toHour: 16,
+    vars: {
+      "--pink-1": "#ffd9ec",
+      "--pink-2": "#ff9ecf",
+      "--blue-1": "#d8f1ff",
+      "--blue-2": "#9fd8ff",
+      "--bg-1": "#fff5fb",
+      "--bg-2": "#ffe9f4",
+      "--bg-3": "#e5f5ff",
+      "--decor-top-1": "#ffc5e3",
+      "--decor-top-2": "#ffdff0",
+      "--decor-bottom-1": "#bde6ff",
+      "--decor-bottom-2": "#e2f6ff"
+    }
+  },
+  {
+    name: "sunset",
+    fromHour: 16,
+    toHour: 20,
+    vars: {
+      "--pink-1": "#ffd4e3",
+      "--pink-2": "#ff8fc0",
+      "--blue-1": "#d7f0ff",
+      "--blue-2": "#95d1ff",
+      "--bg-1": "#fff4f7",
+      "--bg-2": "#ffe3ef",
+      "--bg-3": "#e0f0ff",
+      "--decor-top-1": "#ffbbda",
+      "--decor-top-2": "#ffd9ea",
+      "--decor-bottom-1": "#b0ddff",
+      "--decor-bottom-2": "#d8efff"
+    }
+  },
+  {
+    name: "night-soft",
+    fromHour: 20,
+    toHour: 24,
+    vars: {
+      "--pink-1": "#ffd7ea",
+      "--pink-2": "#f7a3cc",
+      "--blue-1": "#d9eeff",
+      "--blue-2": "#a3d2f5",
+      "--bg-1": "#f8f0ff",
+      "--bg-2": "#f7e7ff",
+      "--bg-3": "#e4efff",
+      "--decor-top-1": "#ffc6ea",
+      "--decor-top-2": "#efd9ff",
+      "--decor-bottom-1": "#b5d8fb",
+      "--decor-bottom-2": "#d6e8ff"
+    }
+  },
+  {
+    name: "night-soft",
+    fromHour: 0,
+    toHour: 5,
+    vars: {
+      "--pink-1": "#ffd7ea",
+      "--pink-2": "#f7a3cc",
+      "--blue-1": "#d9eeff",
+      "--blue-2": "#a3d2f5",
+      "--bg-1": "#f8f0ff",
+      "--bg-2": "#f7e7ff",
+      "--bg-3": "#e4efff",
+      "--decor-top-1": "#ffc6ea",
+      "--decor-top-2": "#efd9ff",
+      "--decor-bottom-1": "#b5d8fb",
+      "--decor-bottom-2": "#d6e8ff"
+    }
+  }
+];
 
 const bubbles = [];
 const MAX_BUBBLES = prefersReducedMotion ? 20 : LOW_POWER_MODE ? 20 : 100;
 let bubbleAnimationFrameId = 0;
 let previousBubbleFrameTime = 0;
 let frameRemainderMs = 0;
+let collisionAccumulatorMs = 0;
+let lodRefreshAccumulatorMs = 0;
 let persistedWishes = [];
 let panelCollapsed = false;
 let viewportWidth = window.innerWidth;
 let viewportHeight = window.innerHeight;
+let themeClockId = 0;
+let lastInteractionAtMs = performance.now();
+let velocityActivityFactor = 1;
+let bobActivityFactor = 1;
+let pointerX = viewportWidth * 0.5;
+let pointerY = viewportHeight * 0.5;
+let pointerLastActiveMs = 0;
 
 let auth = null;
 let database = null;
@@ -306,6 +426,264 @@ function randomInRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+function getBubbleTextDensityClass(itemName, itemNote) {
+  const densityScore = itemName.length * 1.1 + itemNote.length * 0.95;
+  if (densityScore >= 132) {
+    return "ultra-compact";
+  }
+
+  if (densityScore >= 96) {
+    return "compact";
+  }
+
+  return "";
+}
+
+function getThemePackForHour(hour) {
+  for (const pack of THEME_PACKS) {
+    if (hour >= pack.fromHour && hour < pack.toHour) {
+      return pack;
+    }
+  }
+
+  return THEME_PACKS[1];
+}
+
+function applyThemePackByTime(currentDate = new Date()) {
+  const rootStyle = document.documentElement.style;
+  const themePack = getThemePackForHour(currentDate.getHours());
+  for (const [cssVar, value] of Object.entries(themePack.vars)) {
+    rootStyle.setProperty(cssVar, value);
+  }
+
+  document.body.dataset.theme = themePack.name;
+}
+
+function startThemeClock() {
+  applyThemePackByTime();
+  if (themeClockId) {
+    clearInterval(themeClockId);
+  }
+
+  themeClockId = window.setInterval(() => {
+    applyThemePackByTime();
+  }, 5 * 60 * 1000);
+}
+
+function markInteraction(clientX, clientY) {
+  const now = performance.now();
+  lastInteractionAtMs = now;
+
+  if (Number.isFinite(clientX) && Number.isFinite(clientY)) {
+    pointerX = clamp(clientX, 0, viewportWidth);
+    pointerY = clamp(clientY, 0, viewportHeight);
+    pointerLastActiveMs = now;
+  }
+}
+
+function initInteractionTracking() {
+  const handlePointerMove = (event) => {
+    markInteraction(event.clientX, event.clientY);
+  };
+
+  if (window.PointerEvent) {
+    document.addEventListener("pointermove", handlePointerMove, { passive: true });
+  } else {
+    document.addEventListener("mousemove", handlePointerMove, { passive: true });
+  }
+
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      markInteraction(touch.clientX, touch.clientY);
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    "touchstart",
+    (event) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+
+      markInteraction(touch.clientX, touch.clientY);
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    "wheel",
+    () => {
+      markInteraction();
+    },
+    { passive: true }
+  );
+
+  window.addEventListener("keydown", () => {
+    markInteraction();
+  });
+}
+
+function updateActivityFactors(now) {
+  const idle = now - lastInteractionAtMs > IDLE_AFTER_MS;
+  const targetVelocityFactor = idle ? IDLE_VELOCITY_FACTOR : 1;
+  const targetBobFactor = idle ? IDLE_BOB_FACTOR : 1;
+  velocityActivityFactor += (targetVelocityFactor - velocityActivityFactor) * 0.09;
+  bobActivityFactor += (targetBobFactor - bobActivityFactor) * 0.09;
+}
+
+function getMagnetOffset(bubble, now) {
+  if (!ENABLE_MAGNET || now - pointerLastActiveMs > MAGNET_ACTIVITY_WINDOW_MS) {
+    return { x: 0, y: 0 };
+  }
+
+  const centerX = bubble.x + bubble.width * 0.5;
+  const centerY = bubble.y + bubble.height * 0.5;
+  const deltaX = pointerX - centerX;
+  const deltaY = pointerY - centerY;
+  const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+  const magnetRadiusSquared = MAGNET_RADIUS * MAGNET_RADIUS;
+  if (distanceSquared === 0 || distanceSquared > magnetRadiusSquared) {
+    return { x: 0, y: 0 };
+  }
+
+  const distance = Math.sqrt(distanceSquared);
+  const normalizedDistance = 1 - distance / MAGNET_RADIUS;
+  const offsetStrength = normalizedDistance * normalizedDistance * MAGNET_MAX_OFFSET * velocityActivityFactor;
+  return {
+    x: (deltaX / distance) * offsetStrength,
+    y: (deltaY / distance) * offsetStrength
+  };
+}
+
+function refreshBubbleLod() {
+  const centerX = viewportWidth * 0.5;
+  const centerY = viewportHeight * 0.5;
+  const invHalfWidth = 1 / Math.max(1, centerX);
+  const invHalfHeight = 1 / Math.max(1, centerY);
+
+  for (const bubble of bubbles) {
+    const bubbleCenterX = bubble.x + bubble.width * 0.5;
+    const bubbleCenterY = bubble.y + bubble.height * 0.5;
+    const normalizedX = (bubbleCenterX - centerX) * invHalfWidth;
+    const normalizedY = (bubbleCenterY - centerY) * invHalfHeight;
+    const radialDistance = Math.hypot(normalizedX, normalizedY);
+
+    let lodLevel = 0;
+    if (radialDistance > 0.96) {
+      lodLevel = 2;
+    } else if (radialDistance > 0.68) {
+      lodLevel = 1;
+    }
+
+    if (LOW_POWER_MODE && lodLevel === 0 && bubbles.length > 12) {
+      lodLevel = 1;
+    }
+
+    if (bubble.lodLevel !== lodLevel) {
+      bubble.lodLevel = lodLevel;
+      bubble.element.dataset.lod = String(lodLevel);
+    }
+  }
+}
+
+function resolveBubblePairCollision(leftBubble, rightBubble) {
+  const leftCenterX = leftBubble.x + leftBubble.width * 0.5;
+  const leftCenterY = leftBubble.y + leftBubble.height * 0.5;
+  const rightCenterX = rightBubble.x + rightBubble.width * 0.5;
+  const rightCenterY = rightBubble.y + rightBubble.height * 0.5;
+  const deltaX = rightCenterX - leftCenterX;
+  const deltaY = rightCenterY - leftCenterY;
+  const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+  const minDistance = leftBubble.collisionRadius + rightBubble.collisionRadius;
+  const minDistanceSquared = minDistance * minDistance;
+
+  if (distanceSquared === 0 || distanceSquared >= minDistanceSquared) {
+    return;
+  }
+
+  const distance = Math.sqrt(distanceSquared);
+  const normalX = deltaX / distance;
+  const normalY = deltaY / distance;
+  const overlap = minDistance - distance;
+  const separationX = normalX * overlap * 0.5;
+  const separationY = normalY * overlap * 0.5;
+
+  leftBubble.x = clamp(leftBubble.x - separationX, 0, leftBubble.maxX);
+  leftBubble.y = clamp(leftBubble.y - separationY, 0, leftBubble.maxY);
+  rightBubble.x = clamp(rightBubble.x + separationX, 0, rightBubble.maxX);
+  rightBubble.y = clamp(rightBubble.y + separationY, 0, rightBubble.maxY);
+
+  const relativeVelocity = (rightBubble.vx - leftBubble.vx) * normalX + (rightBubble.vy - leftBubble.vy) * normalY;
+  if (relativeVelocity >= 0) {
+    return;
+  }
+
+  const impulse = Math.min(36, -relativeVelocity) * 0.42;
+  leftBubble.vx -= normalX * impulse;
+  leftBubble.vy -= normalY * impulse;
+  rightBubble.vx += normalX * impulse;
+  rightBubble.vy += normalY * impulse;
+}
+
+function resolveBubbleCollisionsWithGrid() {
+  if (bubbles.length < 2) {
+    return;
+  }
+
+  const spatialGrid = new Map();
+  for (const bubble of bubbles) {
+    const centerX = bubble.x + bubble.width * 0.5;
+    const centerY = bubble.y + bubble.height * 0.5;
+    const cellX = Math.floor(centerX / COLLISION_GRID_SIZE);
+    const cellY = Math.floor(centerY / COLLISION_GRID_SIZE);
+    const cellKey = `${cellX},${cellY}`;
+    const cellItems = spatialGrid.get(cellKey);
+    if (cellItems) {
+      cellItems.push(bubble);
+      continue;
+    }
+
+    spatialGrid.set(cellKey, [bubble]);
+  }
+
+  for (const [cellKey, cellBubbles] of spatialGrid) {
+    const separatorIndex = cellKey.indexOf(",");
+    const baseX = Number(cellKey.slice(0, separatorIndex));
+    const baseY = Number(cellKey.slice(separatorIndex + 1));
+
+    for (const [offsetX, offsetY] of COLLISION_NEIGHBOR_OFFSETS) {
+      const neighborKey = `${baseX + offsetX},${baseY + offsetY}`;
+      const neighborBubbles = spatialGrid.get(neighborKey);
+      if (!neighborBubbles) {
+        continue;
+      }
+
+      if (offsetX === 0 && offsetY === 0) {
+        for (let i = 0; i < cellBubbles.length; i += 1) {
+          for (let j = i + 1; j < cellBubbles.length; j += 1) {
+            resolveBubblePairCollision(cellBubbles[i], cellBubbles[j]);
+          }
+        }
+        continue;
+      }
+
+      for (const leftBubble of cellBubbles) {
+        for (const rightBubble of neighborBubbles) {
+          resolveBubblePairCollision(leftBubble, rightBubble);
+        }
+      }
+    }
+  }
+}
+
 function getFrameProfileByBubbleCount(bubbleCount) {
   if (prefersReducedMotion) {
     return {
@@ -384,9 +762,10 @@ function syncBubbleBounds(bubble) {
 }
 
 function applyBubblePhysicsStep(stepSeconds) {
+  const effectiveStepSeconds = stepSeconds * velocityActivityFactor;
   for (const bubble of bubbles) {
-    bubble.x += bubble.vx * stepSeconds;
-    bubble.y += bubble.vy * stepSeconds;
+    bubble.x += bubble.vx * effectiveStepSeconds;
+    bubble.y += bubble.vy * effectiveStepSeconds;
 
     if (bubble.maxX > 0 && (bubble.x <= 0 || bubble.x >= bubble.maxX)) {
       bubble.vx *= -1;
@@ -412,17 +791,29 @@ function simulateBubblesRecursive(remainingSeconds, depth = 0) {
 
 function renderBubbles(now) {
   for (const bubble of bubbles) {
-    const bobOffset = bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude : 0;
-    const renderX = SHOULD_ROUND_POSITIONS ? Math.round(bubble.x) : bubble.x;
-    const renderY = SHOULD_ROUND_POSITIONS ? Math.round(bubble.y + bobOffset) : bubble.y + bobOffset;
+    const bobOffset =
+      bubble.floatAmplitude > 0 ? Math.sin(now / 900 + bubble.floatPhase) * bubble.floatAmplitude * bobActivityFactor : 0;
+    const magnetOffset = getMagnetOffset(bubble, now);
 
-    if (renderX === bubble.renderX && renderY === bubble.renderY) {
+    const burstProgress = clamp((now - bubble.spawnedAtMs) / BURST_DURATION_MS, 0, 1);
+    const burstEase = 1 - (1 - burstProgress) * (1 - burstProgress);
+    const burstScale = 0.88 + burstEase * 0.12;
+    const burstLift = (1 - burstEase) * -7;
+
+    const renderX = SHOULD_ROUND_POSITIONS ? Math.round(bubble.x + magnetOffset.x) : bubble.x + magnetOffset.x;
+    const renderY = SHOULD_ROUND_POSITIONS
+      ? Math.round(bubble.y + bobOffset + magnetOffset.y + burstLift)
+      : bubble.y + bobOffset + magnetOffset.y + burstLift;
+    const renderScale = Number(burstScale.toFixed(3));
+
+    if (renderX === bubble.renderX && renderY === bubble.renderY && renderScale === bubble.renderScale) {
       continue;
     }
 
     bubble.renderX = renderX;
     bubble.renderY = renderY;
-    bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
+    bubble.renderScale = renderScale;
+    bubble.element.style.transform = `translate3d(${renderX}px, ${renderY}px, 0) scale(${renderScale})`;
   }
 }
 
@@ -500,6 +891,11 @@ function clearBubbles() {
 function spawnBubble(itemName, itemNote, itemLevel) {
   const bubbleElement = document.createElement("article");
   bubbleElement.className = `wish-bubble ${itemLevel === "love" ? "pink" : "blue"}`;
+  const textDensityClass = getBubbleTextDensityClass(itemName, itemNote);
+  if (textDensityClass) {
+    bubbleElement.classList.add(textDensityClass);
+  }
+  bubbleElement.classList.add("burst-in");
 
   const title = document.createElement("h3");
   title.textContent = itemName;
@@ -536,14 +932,18 @@ function spawnBubble(itemName, itemNote, itemLevel) {
     y,
     maxX: 0,
     maxY: 0,
+    collisionRadius: Math.max(30, Math.min(width, height) * 0.42),
     vx: velocity.x,
     vy: velocity.y,
     floatPhase: randomInRange(0, Math.PI * 2),
     floatAmplitude: ENABLE_BOB
       ? randomInRange(isCoarsePointer ? 1.5 : 4, isCoarsePointer ? 4.5 : 12) * FLOAT_SCALE
       : 0,
+    spawnedAtMs: performance.now(),
+    lodLevel: -1,
     renderX: Number.NaN,
-    renderY: Number.NaN
+    renderY: Number.NaN,
+    renderScale: Number.NaN
   };
 
   syncBubbleBounds(bubble);
@@ -556,6 +956,8 @@ function spawnBubble(itemName, itemNote, itemLevel) {
       oldestBubble.element.remove();
     }
   }
+
+  refreshBubbleLod();
 
   updateCounter();
 }
@@ -572,6 +974,8 @@ function startBubbleAnimation() {
 
   previousBubbleFrameTime = performance.now();
   frameRemainderMs = 0;
+  collisionAccumulatorMs = 0;
+  lodRefreshAccumulatorMs = 0;
   bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
 }
 
@@ -583,17 +987,22 @@ function stopBubbleAnimation() {
   cancelAnimationFrame(bubbleAnimationFrameId);
   bubbleAnimationFrameId = 0;
   frameRemainderMs = 0;
+  collisionAccumulatorMs = 0;
+  lodRefreshAccumulatorMs = 0;
 }
 
 function animateBubblesFrame(now) {
   if (document.hidden || bubbles.length === 0) {
     bubbleAnimationFrameId = 0;
     frameRemainderMs = 0;
+    collisionAccumulatorMs = 0;
+    lodRefreshAccumulatorMs = 0;
     return;
   }
 
   const elapsedMs = now - previousBubbleFrameTime;
   previousBubbleFrameTime = now;
+  updateActivityFactors(now);
 
   const frameProfile = getFrameProfileByBubbleCount(bubbles.length);
   const cappedElapsedMs = Math.min(elapsedMs, 120);
@@ -608,6 +1017,22 @@ function animateBubblesFrame(now) {
 
   const simulationSeconds = Math.min(processedMs / 1000, MAX_PHYSICS_STEP_SECONDS * MAX_RECURSIVE_SIMULATION_STEPS);
   simulateBubblesRecursive(simulationSeconds);
+
+  collisionAccumulatorMs += processedMs;
+  if (collisionAccumulatorMs >= COLLISION_INTERVAL_MS) {
+    const collisionPasses = Math.min(COLLISION_MAX_PASSES, Math.floor(collisionAccumulatorMs / COLLISION_INTERVAL_MS));
+    for (let pass = 0; pass < collisionPasses; pass += 1) {
+      resolveBubbleCollisionsWithGrid();
+    }
+    collisionAccumulatorMs -= collisionPasses * COLLISION_INTERVAL_MS;
+  }
+
+  lodRefreshAccumulatorMs += processedMs;
+  if (lodRefreshAccumulatorMs >= LOD_REFRESH_INTERVAL_MS) {
+    refreshBubbleLod();
+    lodRefreshAccumulatorMs = lodRefreshAccumulatorMs % LOD_REFRESH_INTERVAL_MS;
+  }
+
   renderBubbles(now);
 
   bubbleAnimationFrameId = requestAnimationFrame(animateBubblesFrame);
@@ -733,10 +1158,14 @@ signOutButton.addEventListener("click", async () => {
 
 window.addEventListener("resize", () => {
   updateViewportSize();
+  pointerX = clamp(pointerX, 0, viewportWidth);
+  pointerY = clamp(pointerY, 0, viewportHeight);
 
   for (const bubble of bubbles) {
     syncBubbleBounds(bubble);
   }
+
+  refreshBubbleLod();
 });
 
 if (window.visualViewport) {
@@ -745,9 +1174,11 @@ if (window.visualViewport) {
 
 async function bootstrap() {
   updateViewportSize();
+  startThemeClock();
   document.body.classList.toggle("coarse-pointer", isCoarsePointer);
   document.body.classList.toggle("low-power", LOW_POWER_MODE);
 
+  initInteractionTracking();
   initParallax();
   setPanelCollapsed(false);
 
