@@ -6,6 +6,7 @@ const form = document.getElementById("wishlist-form");
 const wishlistSection = document.getElementById("wishlist-section");
 const panelToggleButton = document.getElementById("panel-toggle");
 const bubbleLayer = document.getElementById("bubble-layer");
+const thanksLayer = document.getElementById("thanks-layer");
 const panel = document.querySelector(".panel");
 const decorTop = document.querySelector(".decor-top");
 const decorBottom = document.querySelector(".decor-bottom");
@@ -13,6 +14,7 @@ const counter = document.getElementById("wishlist-count");
 const authForm = document.getElementById("auth-form");
 const authStatus = document.getElementById("auth-status");
 const signOutButton = document.getElementById("sign-out");
+const saveWishButton = form ? form.querySelector('button[type="submit"]') : null;
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCgCjImdw1kE9W1Z1frZ1ER5ue1juU2YFY",
@@ -52,6 +54,38 @@ const COLLISION_NEIGHBOR_OFFSETS = [
   [0, 1],
   [1, 1],
   [-1, 1]
+];
+const SAVE_THANK_YOU_MESSAGES = [
+  "Cảm ơn em đã thêm một điều ước dễ thương nè.",
+  "Cảm ơn em, danh sách của mình lại xinh thêm rồi.",
+  "Cảm ơn bé yêu, anh lưu lại thật cẩn thận nha.",
+  "Yay, cảm ơn em đã chia sẻ điều em thích.",
+  "Cảm ơn em nhiều, thêm một chiếc mong muốn đáng yêu.",
+  "Cảm ơn công chúa của anh, món này đáng yêu quá.",
+  "Cảm ơn em, wishlist của tụi mình lung linh hơn rồi.",
+  "Cảm ơn em vì đã tin anh giao nhiệm vụ ghi nhớ này.",
+  "Cảm ơn em, anh đã note lại ngay và luôn.",
+  "Cảm ơn em bé, một bong bóng xinh vừa được thêm vào.",
+  "Cảm ơn em, nhìn danh sách này là thấy vui rồi.",
+  "Cảm ơn vợ iu, anh lưu rồi nha.",
+  "Cảm ơn em đã nói cho anh biết em thích gì.",
+  "Thêm thành công, cảm ơn em yêu nhiều lắm.",
+  "Cảm ơn em, món này được ưu tiên trong tim anh.",
+  "Cảm ơn bé, anh sẽ nhớ món này thật kỹ.",
+  "Cảm ơn em, thêm một gợi ý siêu xinh cho anh.",
+  "Cảm ơn em đã làm wishlist dễ thương quá trời.",
+  "Cảm ơn em, anh đã cất điều ước này vào mây hồng.",
+  "Cảm ơn em yêu, mỗi lần lưu là anh lại cười.",
+  "Cảm ơn em, danh sách này càng ngày càng tuyệt.",
+  "Cảm ơn em, anh nhận tín hiệu yêu thương rồi đó.",
+  "Cảm ơn em, bong bóng mới vừa bay lên xinh quá.",
+  "Cảm ơn em đã thêm niềm vui cho ngày hôm nay.",
+  "Cảm ơn em, anh đã lưu món em thích ngay tức thì.",
+  "Cảm ơn em yêu, wishlist này là kho báu của tụi mình.",
+  "Cảm ơn em, một lời nhắc yêu thương vừa được lưu.",
+  "Cảm ơn em, món này dễ thương đúng gu của bé.",
+  "Cảm ơn em đã click lưu, tim anh cũng click theo.",
+  "Cảm ơn em, điều ước này đã về đúng chỗ rồi nha."
 ];
 const THEME_PACKS = [
   {
@@ -164,6 +198,7 @@ let bobActivityFactor = 1;
 let pointerX = viewportWidth * 0.5;
 let pointerY = viewportHeight * 0.5;
 let pointerLastActiveMs = 0;
+let lastThankYouMessageIndex = -1;
 
 let auth = null;
 let database = null;
@@ -424,6 +459,62 @@ function clamp(value, min, max) {
 
 function randomInRange(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+function pickRandomThankYouMessage() {
+  if (SAVE_THANK_YOU_MESSAGES.length === 0) {
+    return "Cảm ơn em yêu";
+  }
+
+  let index = Math.floor(Math.random() * SAVE_THANK_YOU_MESSAGES.length);
+  if (SAVE_THANK_YOU_MESSAGES.length > 1 && index === lastThankYouMessageIndex) {
+    index = (index + 1 + Math.floor(Math.random() * (SAVE_THANK_YOU_MESSAGES.length - 1))) % SAVE_THANK_YOU_MESSAGES.length;
+  }
+
+  lastThankYouMessageIndex = index;
+  return SAVE_THANK_YOU_MESSAGES[index];
+}
+
+function showRandomSaveThanksToast(clientX, clientY) {
+  if (!thanksLayer || !saveWishButton || wishlistSection.hidden) {
+    return;
+  }
+
+  const buttonRect = saveWishButton.getBoundingClientRect();
+  const anchorX = Number.isFinite(clientX) ? clientX : buttonRect.left + buttonRect.width * 0.5;
+  const anchorY = Number.isFinite(clientY) ? clientY : buttonRect.top + buttonRect.height * 0.5;
+  const toastX = clamp(anchorX + randomInRange(-18, 18), 24, viewportWidth - 24);
+  const toastY = clamp(anchorY + randomInRange(-4, 8), 52, viewportHeight - 24);
+
+  const toast = document.createElement("p");
+  toast.className = "save-thanks-toast";
+  toast.textContent = pickRandomThankYouMessage();
+  toast.style.left = `${toastX}px`;
+  toast.style.top = `${toastY}px`;
+
+  thanksLayer.appendChild(toast);
+
+  while (thanksLayer.childElementCount > 6) {
+    thanksLayer.firstElementChild?.remove();
+  }
+
+  toast.addEventListener(
+    "animationend",
+    () => {
+      toast.remove();
+    },
+    { once: true }
+  );
+}
+
+function initSaveThanksFeedback() {
+  if (!saveWishButton) {
+    return;
+  }
+
+  saveWishButton.addEventListener("click", (event) => {
+    showRandomSaveThanksToast(event.clientX, event.clientY);
+  });
 }
 
 function getBubbleTextDensityClass(itemName, itemNote) {
@@ -1179,6 +1270,7 @@ async function bootstrap() {
   document.body.classList.toggle("low-power", LOW_POWER_MODE);
 
   initInteractionTracking();
+  initSaveThanksFeedback();
   initParallax();
   setPanelCollapsed(false);
 
