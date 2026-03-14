@@ -23,13 +23,22 @@ html,
 body {
   width: 100%;
   min-height: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
+  --viewport-pad-top: 16px;
+  --viewport-pad-right: 16px;
+  --viewport-pad-bottom: 16px;
+  --viewport-pad-left: 16px;
   margin: 0;
   min-height: 100dvh;
-  overflow: auto;
-  padding: 16px;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: var(--viewport-pad-top) var(--viewport-pad-right) var(--viewport-pad-bottom) var(--viewport-pad-left);
   font-family: "Quicksand", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
@@ -142,15 +151,16 @@ body.coarse-pointer .wish-bubble {
 .panel {
   position: relative;
   z-index: 3;
-  width: min(460px, calc(100% - 32px));
-  margin: max(8px, 1.5dvh) auto;
+  width: min(460px, calc(100dvw - var(--viewport-pad-left) - var(--viewport-pad-right)));
+  margin: 0 auto;
   padding: 22px;
   border-radius: 24px;
   background: var(--panel);
   backdrop-filter: blur(6px);
   box-shadow: 0 20px 36px rgba(132, 133, 194, 0.26);
-  max-height: calc(100dvh - 32px);
-  overflow: auto;
+  max-height: calc(100dvh - var(--viewport-pad-top) - var(--viewport-pad-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
   transform-style: preserve-3d;
   will-change: transform;
 }
@@ -398,7 +408,11 @@ button:active {
   }
 
   body {
-    padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    --viewport-pad-top: calc(10px + env(safe-area-inset-top));
+    --viewport-pad-right: calc(10px + env(safe-area-inset-right));
+    --viewport-pad-bottom: calc(10px + env(safe-area-inset-bottom));
+    --viewport-pad-left: calc(10px + env(safe-area-inset-left));
+    padding: var(--viewport-pad-top) var(--viewport-pad-right) var(--viewport-pad-bottom) var(--viewport-pad-left);
     perspective: 820px;
     background:
       radial-gradient(220px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0) 68%),
@@ -410,10 +424,10 @@ button:active {
   }
 
   .panel {
-    width: min(100%, 520px);
+    width: min(520px, calc(100dvw - var(--viewport-pad-left) - var(--viewport-pad-right)));
     padding: 18px;
     border-radius: 20px;
-    max-height: calc(100dvh - 20px);
+    max-height: calc(100dvh - var(--viewport-pad-top) - var(--viewport-pad-bottom));
     backdrop-filter: blur(2px);
   }
 
@@ -480,7 +494,7 @@ button:active {
 
 @media (max-height: 680px) {
   .panel {
-    max-height: calc(100dvh - 12px);
+    max-height: calc(100dvh - var(--viewport-pad-top) - var(--viewport-pad-bottom));
     padding: 14px;
   }
 
